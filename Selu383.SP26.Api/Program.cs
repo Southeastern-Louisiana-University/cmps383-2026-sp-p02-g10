@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Selu383.SP26.Api.Data;
 using Selu383.SP26.Api.Features.Locations;
+using Selu383.SP26.Api.Features.Users;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DataContext")));
 
+builder.Services.AddAuthentication("Cookies")
+    .AddCookie("Cookies", options =>
+    {
+        options.LoginPath = "/api/authentication/login";
+        options.LogoutPath = "/api/authentication/logout";
+    });
+
+builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -18,6 +27,47 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DataContext>();
     db.Database.Migrate();
+
+    // Seed roles
+    if (!db.Roles.Any())
+    {
+        db.Roles.AddRange(
+            new Role { Name = "Admin" },
+            new Role { Name = "User" }
+        );
+        db.SaveChanges();
+    }
+
+    // Seed test users
+    if (!db.Users.Any())
+    {
+        var adminRole = db.Roles.First(x => x.Name == "Admin");
+        var userRole = db.Roles.First(x => x.Name == "User");
+
+        var bob = new User
+        {
+            UserName = "bob",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+            Roles = new List<Role> { userRole }
+        };
+
+        var galkadi = new User
+        {
+            UserName = "galkadi",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+            Roles = new List<Role> { adminRole }
+        };
+
+        var sue = new User
+        {
+            UserName = "sue",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+            Roles = new List<Role> { userRole }
+        };
+
+        db.Users.AddRange(bob, galkadi, sue);
+        db.SaveChanges();
+    }
 
     if (!db.Locations.Any())
     {
@@ -39,6 +89,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
