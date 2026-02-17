@@ -1,0 +1,63 @@
+name: Build and deploy ASP.Net Core app to an Azure Web App
+
+env:
+  AZURE_WEBAPP_NAME: selu383-sp26-p02-g10
+  DOTNET_VERSION: '10.0.x'
+
+on:
+  push:
+    branches: [ "shiv" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build API
+        run: dotnet build Selu383.SP26.Api/Selu383.SP26.Api.csproj -c Release --no-restore
+
+      - name: Test
+        run: dotnet test Selu383.SP26.Tests/Selu383.SP26.Tests.csproj -c Release --no-build --verbosity normal
+
+      - name: Publish API
+        run: dotnet publish Selu383.SP26.Api/Selu383.SP26.Api.csproj -c Release -o publish --no-build
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: publish
+
+  deploy:
+    permissions:
+      contents: none
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: app
+          path: publish
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: publish
