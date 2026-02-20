@@ -1,12 +1,32 @@
 
+Step 1. Backend API (.NET Core):
 
-STEP 1
-docker run -e ACCEPT_EULA=Y -e SA_PASSWORD=YourPassword123! -p 1433:1433 -d mcr.microsoft.com/mssql/server:2022-latest
-
-STEP 2
+Start docker by 
+docker start 24ca4169cf2d
 
 dotnet run --project Selu383.SP26.Api
 
-STEP 3 (OPTIONAL TO STOP)
+2. Mobile App (Expo/React Native):
 
-docker stop <container_id>
+Open a terminal in the Selu383.SP26.Mobile directory.
+Run: npm install (first time or after dependency changes)
+Then run: npx expo start
+
+3. Web App (Vite/React):
+
+Open a terminal in the Selu383.SP26.Web directory.
+Run: npm install (first time or after dependency changes)
+Then run: npm run dev
+
+
+
+
+
+
+To create new cointainer
+
+docker run -e ACCEPT_EULA=Y -e SA_PASSWORD=YourPassword123! -p 1433:1433 -d mcr.microsoft.com/mssql/server:2022-latest
+
+To check exisiting container 
+
+docker ps -a
