@@ -8,13 +8,14 @@ dotnet run --project Selu383.SP26.Api
 
 2. Mobile App (Expo/React Native):
 
-Open a terminal in the Selu383.SP26.Mobile directory.
+Open a terminal in the cd Selu383.SP26.Mobile directory.
 Run: npm install (first time or after dependency changes)
 Then run: npx expo start
 
 3. Web App (Vite/React):
 
-Open a terminal in the Selu383.SP26.Web directory.
+Open a terminal in the 
+ cd Selu383.SP26.Web 
 Run: npm install (first time or after dependency changes)
 Then run: npm run dev
 

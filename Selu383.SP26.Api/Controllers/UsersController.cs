@@ -1,93 +1,77 @@
+
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Selu383.SP26.Api.Data;
+using Microsoft.AspNetCore.Identity;
 using Selu383.SP26.Api.Features.Users;
-using System.Text.RegularExpressions;
+using Selu383.SP26.Api.Features.Roles;
 
 namespace Selu383.SP26.Api.Controllers;
 
-[Route("api/users")]
 [ApiController]
-[Authorize(Roles = "Admin")]
-public class UsersController(
-    DataContext dataContext
-) : ControllerBase
+[Route("api/users")]
+public class UsersController : ControllerBase
 {
-    [HttpPost]
-    public async Task<ActionResult<UserDto>> CreateUser(CreateUserDto dto)
-    {
-        // Validate username
-        if (string.IsNullOrWhiteSpace(dto.UserName))
-        {
-            return BadRequest("Username is required");
-        }
+    private readonly UserManager<User> _userManager;
+    private readonly RoleManager<Role> _roleManager;
 
-        // Check for duplicate username
-        var existingUser = await dataContext.Set<User>()
-            .FirstOrDefaultAsync(x => x.UserName == dto.UserName);
+    public UsersController(UserManager<User> userManager, RoleManager<Role> roleManager)
+    {
+        _userManager = userManager;
+        _roleManager = roleManager;
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")] //only admin role can create a new user
+    public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto)
+    {
+        //checks for duplicate user
+        var existingUser = await _userManager.FindByNameAsync(dto.UserName);
         if (existingUser != null)
         {
-            return BadRequest("Username already exists");
+            return BadRequest("Username already exists.");
         }
-
-        // Validate password
-        if (string.IsNullOrWhiteSpace(dto.Password))
-        {
-            return BadRequest("Password is required");
-        }
-
-        if (!IsValidPassword(dto.Password))
-        {
-            return BadRequest("Password must be at least 8 characters and contain uppercase, lowercase, digit, and special character");
-        }
-
-        // Validate roles
+        //check for empty roles
         if (dto.Roles == null || dto.Roles.Length == 0)
         {
-            return BadRequest("At least one role is required");
+            return BadRequest("You must provide at least one role.");
+
         }
-
-        var roles = new List<Role>();
-        var roleNames = dto.Roles.Distinct().ToList();
-        var existingRoles = await dataContext.Set<Role>()
-            .Where(x => roleNames.Contains(x.Name))
-            .ToListAsync();
-
-        if (existingRoles.Count != roleNames.Count)
+        //check if the role actually exists
+        foreach (var roleName in dto.Roles)
         {
-            return BadRequest("One or more roles do not exist");
+            if (!await _roleManager.RoleExistsAsync(roleName))
+            {
+                return BadRequest($"Role '{roleName}' does not exist.");
+            }
         }
-
-        roles = existingRoles;
-
-        // Create user
+        //create the user
         var user = new User
         {
             UserName = dto.UserName,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-            Roles = roles
         };
+        //save user and password valid
+        var result = await _userManager.CreateAsync(user, dto.Password);
+        if (!result.Succeeded)
+        {
+            //return 400 error if password is weak
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(error.Code, error.Description);
 
-        dataContext.Set<User>().Add(user);
-        await dataContext.SaveChangesAsync();
+            }
+            return BadRequest(ModelState);
 
+        }
+        //assign roles
+        await _userManager.AddToRolesAsync(user, dto.Roles);
+        //return it being a success
         return Ok(new UserDto
         {
             Id = user.Id,
-            UserName = user.UserName,
-            Roles = user.Roles.Select(x => x.Name).ToArray()
+            UserName = user.UserName!,
+            Roles = dto.Roles
+
         });
     }
-
-    private static bool IsValidPassword(string password)
-    {
-        if (password.Length < 8)
-            return false;
-
-        return Regex.IsMatch(password, @"[a-z]") &&  // lowercase
-               Regex.IsMatch(password, @"[A-Z]") &&  // uppercase
-               Regex.IsMatch(password, @"\d") &&     // digit
-               Regex.IsMatch(password, @"[\W_]");    // special character
-    }
 }
+        
