@@ -16,5 +16,7 @@
       <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.0.0" />
   </ItemGroup>
-
+<ItemGroup>
+  <EmbeddedResource Remove="**/*.resx" />
+</ItemGroup>
 </Project>
