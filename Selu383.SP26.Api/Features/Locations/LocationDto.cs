@@ -14,6 +14,6 @@ public class LocationDto
     [Required]
     public int TableCount { get; set; }
 
-    public int ManagerId { get; set; }
+    public int? ManagerId { get; set; }
 
 }

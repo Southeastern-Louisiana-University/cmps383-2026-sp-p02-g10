@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Selu383.SP26.Api.Data;
-using Selu383.SP26.Api.Features.Locations; 
+using Selu383.SP26.Api.Features.Locations;
 using Selu383.SP26.Api.Features.Users;
 using Selu383.SP26.Api.Features.Roles;
 
@@ -43,20 +43,9 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<Role>>();
 
-    
-
     // migrates db and creates tables if they don't exist
     await db.Database.MigrateAsync();
 
-    if (!db.Locations.Any())
-    {
-        db.Locations.AddRange(
-            new Location { Name = "Location 1", Address = "383 Cherry Lane", TableCount = 1 },
-            new Location { Name = "Location 2", Address = "290 Alkadi Ave", TableCount = 20 },
-            new Location { Name = "Location 3", Address = "717 MLK Dr", TableCount = 15 }
-        );
-        await db.SaveChangesAsync();
-    }
     if (!await roleManager.RoleExistsAsync("Admin"))
     {
         await roleManager.CreateAsync(new Role { Name = "Admin" });
@@ -85,17 +74,20 @@ using (var scope = app.Services.CreateScope())
         await userManager.CreateAsync(admin, "Password123!");
         await userManager.AddToRoleAsync(admin, "Admin");
     }
+    if (!db.Locations.Any())
+    {
+        var sueUser = await userManager.FindByNameAsync("sue");
+        await db.Locations.AddRangeAsync(
+            new Location { Name = "Location 1", Address = "383 Cherry Lane", TableCount = 1, ManagerId = sueUser?.Id },
+            new Location { Name = "Location 2", Address = "290 Alkadi Ave", TableCount = 20 },
+            new Location { Name = "Location 3", Address = "717 MLK Dr", TableCount = 15 }
+        );
+        await db.SaveChangesAsync();
+    }
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 app.UseHttpsRedirection();
-
 app
     .UseRouting()
     .UseAuthentication()
@@ -109,11 +101,16 @@ app.UseStaticFiles();
 
 if (app.Environment.IsDevelopment())
 {
+    app.UseSwagger();
+    app.UseSwaggerUI();
+
     app.UseSpa(x =>
     {
         x.UseProxyToSpaDevelopmentServer("http://localhost:5173");
     });
-} else {
+}
+else
+{
     app.MapFallbackToFile("index.html");
 }
 

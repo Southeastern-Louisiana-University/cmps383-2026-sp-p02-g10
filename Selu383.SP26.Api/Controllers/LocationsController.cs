@@ -1,14 +1,13 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Selu383.SP26.Api.Data;
-using Selu383.SP26.Api.Features.Authorization;
-using Selu383.SP26.Api.Features.Users;
 
 namespace Selu383.SP26.Api.Features.Locations;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/locations")]
 public class LocationsController : ControllerBase
 {
     private readonly DataContext _dataContext;
@@ -60,7 +59,7 @@ public class LocationsController : ControllerBase
 
     // POST /api/locations (Admins only)
     [HttpPost]
-    [Authorize(Roles = RoleNames.Admin)]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<LocationDto>> Create(LocationDto dto)
     {
         var validation = await ValidateLocationDto(dto, validateId: false, existingLocation: null);
@@ -99,8 +98,8 @@ public class LocationsController : ControllerBase
         if (location is null)
             return NotFound();
 
-        var isAdmin = User.IsInRole(RoleNames.Admin);
-        var currentUserId = User.GetUserId();
+        var isAdmin = User.IsInRole("Admin");
+        var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "-1");
 
         // Users may update only if they are the manager; admins always allowed
         if (!isAdmin)
@@ -148,8 +147,8 @@ public class LocationsController : ControllerBase
         if (location is null)
             return NotFound();
 
-        var isAdmin = User.IsInRole(RoleNames.Admin);
-        var currentUserId = User.GetUserId();
+        var isAdmin = User.IsInRole("Admin");
+        var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "-1");
 
         // Users may delete only if they are the manager; admins always allowed
         if (!isAdmin)
