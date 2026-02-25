@@ -8,7 +8,7 @@ env:
 
 on:
   push:
-    branches: [ "shiv" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
