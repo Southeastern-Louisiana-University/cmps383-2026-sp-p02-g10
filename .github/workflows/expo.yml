@@ -1,9 +1,12 @@
+name: Mobile Android Build + Release
+
 on:
   push:
     branches:
       - shiv
     paths:
       - "Selu383.SP26.Mobile/**"
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -38,19 +41,22 @@ jobs:
         working-directory: Selu383.SP26.Mobile
         run: npm ci
 
-      - name: set environment variables
-        uses: allenevans/set-env@v3.0.0
-        with:
-          EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ runner.temp }}
+      - name: ✅ Sanity check Expo config
+        working-directory: Selu383.SP26.Mobile
+        run: npx expo config --json
 
-      - name: 🚀 Build app
-        run: cd ./Selu383.SP26.Mobile/ && eas build -p android --non-interactive
+      - name: 🚀 Build app (local APK)
+        working-directory: Selu383.SP26.Mobile
+        env:
+          EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ runner.temp }}
+        run: eas build -p android --non-interactive --local --output ${{ runner.temp }}/app.apk
 
       - name: 🛳️ Make Release
-        uses: "marvinpinto/action-automatic-releases@latest"
+        uses: marvinpinto/action-automatic-releases@latest
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           automatic_release_tag: "latest"
           prerelease: false
           files: |
             ${{ runner.temp }}/*.apk
+            ${{ runner.temp }}/*.aab
