@@ -13,7 +13,6 @@ public class LocationDto
     [Required]
     public string Address { get; set; } = string.Empty;
 
-    [Range(1, int.MaxValue)]
     public int TableCount { get; set; }
 
     public int? ManagerId { get; set; }

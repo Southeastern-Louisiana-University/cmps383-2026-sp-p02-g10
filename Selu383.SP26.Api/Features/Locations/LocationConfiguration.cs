@@ -10,5 +10,12 @@ public class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(x => x.Name)
             .IsRequired()
             .HasMaxLength(120);
+        builder.Property(x => x.Address)
+            .IsRequired();
+        builder.Property(x => x.TableCount)
+            .IsRequired();
+        builder.HasOne(x => x.Manager)
+            .WithMany()
+            .HasForeignKey(x => x.ManagerId);
     }
 }
