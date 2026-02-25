@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
-using Selu383.SP26.Api.Features.UserRoles;
+using Selu383.SP26.Api.Features.Users;
 
-namespace Selu383.SP26.Api.Features.Roles;
+namespace Selu383.SP26.Api.Features.Users;
 
 //must inherit identityrole<int>
 public class Role : IdentityRole<int> 
