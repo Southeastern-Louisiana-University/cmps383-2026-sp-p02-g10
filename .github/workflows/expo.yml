@@ -41,15 +41,16 @@ jobs:
         working-directory: Selu383.SP26.Mobile
         run: npm ci
 
-      - name: ✅ Sanity check Expo config
+      - name: Sanity check Expo config
         working-directory: Selu383.SP26.Mobile
         run: npx expo config --json
 
-      - name: 🚀 Build app (local APK)
+      - name: 🚀 Build app
         working-directory: Selu383.SP26.Mobile
         env:
           EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ runner.temp }}
-        run: eas build -p android --non-interactive --local --output ${{ runner.temp }}/app.apk
+          EAS_BUILD_NO_EXPO_GO_WARNING: "true"
+        run: eas build -p android --non-interactive
 
       - name: 🛳️ Make Release
         uses: marvinpinto/action-automatic-releases@latest
@@ -57,6 +58,6 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           automatic_release_tag: "latest"
           prerelease: false
-          files: |
-            ${{ runner.temp }}/*.apk
-            ${{ runner.temp }}/*.aab
+      files: |
+        ${{ runner.temp }}/*.apk
+        ${{ runner.temp }}/*.aab
