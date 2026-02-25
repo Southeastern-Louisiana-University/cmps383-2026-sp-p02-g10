@@ -3,43 +3,34 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Selu383.SP26.Api.Features.Locations;
 using Selu383.SP26.Api.Features.Users;
-using Selu383.SP26.Api.Features.Roles;
-using Selu383.SP26.Api.Features.UserRoles;
 
 namespace Selu383.SP26.Api.Data;
 
-// included <int> to explicitly specify the key type for identity entities because the default is string
-public class DataContext : IdentityDbContext<User, Role, int,
-    IdentityUserClaim<int>, UserRole, IdentityUserLogin<int>, IdentityRoleClaim<int>, IdentityUserToken<int>>
+public class DataContext : IdentityDbContext<User, Role, int, IdentityUserClaim<int>, UserRole, IdentityUserLogin<int>, IdentityRoleClaim<int>, IdentityUserToken<int>>
 {
     public DataContext(DbContextOptions<DataContext> options) : base(options)
     {
     }
 
-    public DbSet<Location> Locations { get; set; } = default!;
+    public DbSet<Location> Locations { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Apply Location EF configuration (this was missing)
-        modelBuilder.ApplyConfiguration(new LocationConfiguration());
+        var userRoleBuilder = modelBuilder.Entity<UserRole>();
 
-        // configure the UserRole composite key 
-        modelBuilder.Entity<UserRole>()
-            .HasKey(ur => new { ur.UserId, ur.RoleId });
+        userRoleBuilder.HasKey(x => new { x.UserId, x.RoleId });
 
-        // configures the UserRole relationships
-        modelBuilder.Entity<UserRole>()
-            .HasOne(ur => ur.Role)
-            .WithMany(r => r.Users)
-            .HasForeignKey(ur => ur.RoleId)
-            .IsRequired();
+        userRoleBuilder.HasOne(navigationExpression: x => x.Role)
+            .WithMany(navigationExpression: x => x.Users)
+            .HasForeignKey(x => x.RoleId);
 
-        modelBuilder.Entity<UserRole>()
-            .HasOne(ur => ur.User)
-            .WithMany(u => u.Roles)
-            .HasForeignKey(ur => ur.UserId)
-            .IsRequired();
+        userRoleBuilder.HasOne(navigationExpression: x => x.User)
+            .WithMany(navigationExpression: x => x.Roles)
+            .HasForeignKey(x => x.UserId);
+
+        // find all the "IEntityTypeConfiguration<TEntity>" implementations in this assembly and apply them
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(DataContext).Assembly);
     }
 }

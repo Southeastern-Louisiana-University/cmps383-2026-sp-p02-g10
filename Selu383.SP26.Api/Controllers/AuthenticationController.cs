@@ -1,46 +1,33 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Selu383.SP26.Api.Features.Authentication;
+using Microsoft.AspNetCore.Mvc;
 using Selu383.SP26.Api.Features.Users;
 
 namespace Selu383.SP26.Api.Controllers;
 
 [Route("api/authentication")]
 [ApiController]
-public class AuthenticationController : ControllerBase
+public class AuthenticationController(
+    UserManager<User> userManager,
+    SignInManager<User> signInManager
+) : ControllerBase
 {
-    private readonly UserManager<User> _userManager;
-    private readonly SignInManager<User> _signInManager;
-
-    public AuthenticationController(UserManager<User> userManager, SignInManager<User> signInManager)
-    {
-        _userManager = userManager;
-        _signInManager = signInManager;
-    }
-
-
     [HttpPost("login")]
-    public async Task<ActionResult<UserDto>> Login([FromBody] LoginDto dto)
+    public async Task<ActionResult<UserDto>> Login(LoginDto dto)
     {
-
-        var user = await _userManager.FindByNameAsync(dto.UserName);
+        var user = await userManager.FindByNameAsync(dto.UserName);
         if (user == null)
         {
-     
-            return BadRequest();
-    }
-        var result = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, false);
-        if (!result.Succeeded)
-        {
-
-            return BadRequest();
-
+            return BadRequest("Invalid username or password.");
         }
 
-        await _signInManager.SignInAsync(user, false);
+        var result = await signInManager.PasswordSignInAsync(user, dto.Password, isPersistent: true, lockoutOnFailure: false);
+        if (!result.Succeeded)
+        {
+            return BadRequest("Invalid username or password.");
+        }
 
-        var roles = await _userManager.GetRolesAsync(user);
+        var roles = await userManager.GetRolesAsync(user);
         return Ok(new UserDto
         {
             Id = user.Id,
@@ -48,25 +35,22 @@ public class AuthenticationController : ControllerBase
             Roles = roles.ToArray()
         });
     }
+
     [HttpGet("me")]
-    [Authorize] 
     public async Task<ActionResult<UserDto>> Me()
     {
-
-        var username = User.Identity?.Name;
-        if (username == null)
+        if (!User.Identity!.IsAuthenticated)
         {
             return Unauthorized();
         }
 
-        var user = await _userManager.FindByNameAsync(username);
+        var user = await userManager.GetUserAsync(User);
         if (user == null)
         {
-            return Unauthorized(); 
-
+            return Unauthorized();
         }
 
-        var roles = await _userManager.GetRolesAsync(user);
+        var roles = await userManager.GetRolesAsync(user);
         return Ok(new UserDto
         {
             Id = user.Id,
@@ -74,11 +58,12 @@ public class AuthenticationController : ControllerBase
             Roles = roles.ToArray()
         });
     }
-    [HttpPost("logout")]
+
     [Authorize]
+    [HttpPost("logout")]
     public async Task<ActionResult> Logout()
     {
-        await _signInManager.SignOutAsync();
-        return Ok ();
+        await signInManager.SignOutAsync();
+        return Ok();
     }
 }

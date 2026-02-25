@@ -2,199 +2,130 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Selu383.SP26.Api.Data;
-using Selu383.SP26.Api.Features.Authorization;
-using Selu383.SP26.Api.Features.Users;
+using Selu383.SP26.Api.Features.Locations;
+using System.Security.Claims;
 
-namespace Selu383.SP26.Api.Features.Locations;
+namespace Selu383.SP26.Api.Controllers;
 
+[Route("api/locations")]
 [ApiController]
-[Route("api/[controller]")]
-public class LocationsController : ControllerBase
+public class LocationsController(
+    DataContext dataContext
+    ) : ControllerBase
 {
-    private readonly DataContext _dataContext;
-
-    public LocationsController(DataContext dataContext)
-    {
-        _dataContext = dataContext;
-    }
-
-    // GET /api/locations
     [HttpGet]
-    public async Task<ActionResult<List<LocationDto>>> ListAll()
+    public IQueryable<LocationDto> GetAll()
     {
-        var locations = await _dataContext.Locations
+        return dataContext.Set<Location>()
             .Select(x => new LocationDto
             {
                 Id = x.Id,
                 Name = x.Name,
                 Address = x.Address,
                 TableCount = x.TableCount,
-                ManagerId = x.ManagerId
-            })
-            .ToListAsync();
-
-        return Ok(locations);
+                ManagerId = x.ManagerId,
+            });
     }
 
-    // GET /api/locations/{id}
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<LocationDto>> GetById(int id)
+    [HttpGet("{id}")]
+    public ActionResult<LocationDto> GetById(int id)
     {
-        var location = await _dataContext.Locations
-            .Where(x => x.Id == id)
-            .Select(x => new LocationDto
-            {
-                Id = x.Id,
-                Name = x.Name,
-                Address = x.Address,
-                TableCount = x.TableCount,
-                ManagerId = x.ManagerId
-            })
-            .FirstOrDefaultAsync();
+        var result = dataContext.Set<Location>()
+            .FirstOrDefault(x => x.Id == id);
 
-        if (location is null)
+        if (result == null)
+        {
             return NotFound();
+        }
 
-        return Ok(location);
+        return Ok(new LocationDto
+        {
+            Id = result.Id,
+            Name = result.Name,
+            Address = result.Address,
+            TableCount = result.TableCount,
+            ManagerId = result.ManagerId,
+        });
     }
 
-    // POST /api/locations (Admins only)
     [HttpPost]
-    [Authorize(Roles = RoleNames.Admin)]
-    public async Task<ActionResult<LocationDto>> Create(LocationDto dto)
+    [Authorize(Roles = "Admin")]
+    public ActionResult<LocationDto> Create(LocationDto dto)
     {
-        var validation = await ValidateLocationDto(dto, validateId: false, existingLocation: null);
-        if (validation is not null)
-            return validation;
+        if (dto.TableCount < 1)
+        {
+            return BadRequest();
+        }
 
         var location = new Location
         {
-            Name = dto.Name.Trim(),
-            Address = dto.Address.Trim(),
+            Name = dto.Name,
+            Address = dto.Address,
             TableCount = dto.TableCount,
-            ManagerId = dto.ManagerId
+            ManagerId = dto.ManagerId,
         };
 
-        _dataContext.Locations.Add(location);
-        await _dataContext.SaveChangesAsync();
+        dataContext.Set<Location>().Add(location);
+        dataContext.SaveChanges();
 
-        var createdDto = new LocationDto
-        {
-            Id = location.Id,
-            Name = location.Name,
-            Address = location.Address,
-            TableCount = location.TableCount,
-            ManagerId = location.ManagerId
-        };
+        dto.Id = location.Id;
 
-        return CreatedAtAction(nameof(GetById), new { id = location.Id }, createdDto);
+        return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
     }
 
-    // PUT /api/locations/{id}
-    [HttpPut("{id:int}")]
+    [HttpPut("{id}")]
     [Authorize]
-    public async Task<ActionResult<LocationDto>> Update(int id, LocationDto dto)
+    public ActionResult<LocationDto> Update(int id, LocationDto dto)
     {
-        var location = await _dataContext.Locations.FirstOrDefaultAsync(x => x.Id == id);
-        if (location is null)
-            return NotFound();
-
-        var isAdmin = User.IsInRole(RoleNames.Admin);
-        var currentUserId = User.GetUserId();
-
-        // Users may update only if they are the manager; admins always allowed
-        if (!isAdmin)
+        if (dto.TableCount < 1)
         {
-            if (location.ManagerId is null || location.ManagerId.Value != currentUserId)
-                return Forbid();
-
-            // Only admins can change ManagerId
-            if (dto.ManagerId != location.ManagerId)
-                return Forbid();
+            return BadRequest();
         }
 
-        var validation = await ValidateLocationDto(dto, validateId: false, existingLocation: location);
-        if (validation is not null)
-            return validation;
+        var location = dataContext.Set<Location>()
+            .FirstOrDefault(x => x.Id == id);
 
-        location.Name = dto.Name.Trim();
-        location.Address = dto.Address.Trim();
+        if (location == null)
+        {
+            return NotFound();
+        }
+
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        if (location.ManagerId != userId && !User.IsInRole("Admin"))
+            return Forbid();
+
+        location.Name = dto.Name;
+        location.Address = dto.Address;
         location.TableCount = dto.TableCount;
+        location.ManagerId = dto.ManagerId;
 
-        // Admins can change ManagerId
-        if (isAdmin)
-            location.ManagerId = dto.ManagerId;
+        dataContext.SaveChanges();
 
-        await _dataContext.SaveChangesAsync();
+        dto.Id = location.Id;
 
-        var updatedDto = new LocationDto
-        {
-            Id = location.Id,
-            Name = location.Name,
-            Address = location.Address,
-            TableCount = location.TableCount,
-            ManagerId = location.ManagerId
-        };
-
-        return Ok(updatedDto);
+        return Ok(dto);
     }
 
-    // DELETE /api/locations/{id}
-    [HttpDelete("{id:int}")]
+    [HttpDelete("{id}")]
     [Authorize]
-    public async Task<IActionResult> Delete(int id)
+    public ActionResult Delete(int id)
     {
-        var location = await _dataContext.Locations.FirstOrDefaultAsync(x => x.Id == id);
-        if (location is null)
-            return NotFound();
+        var location = dataContext.Set<Location>()
+            .FirstOrDefault(x => x.Id == id);
 
-        var isAdmin = User.IsInRole(RoleNames.Admin);
-        var currentUserId = User.GetUserId();
-
-        // Users may delete only if they are the manager; admins always allowed
-        if (!isAdmin)
+        if (location == null)
         {
-            if (location.ManagerId is null || location.ManagerId.Value != currentUserId)
-                return Forbid();
+            return NotFound();
         }
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        _dataContext.Locations.Remove(location);
-        await _dataContext.SaveChangesAsync();
+        if (location.ManagerId != userId && !User.IsInRole("Admin"))
+            return Forbid();
+
+        dataContext.Set<Location>().Remove(location);
+        dataContext.SaveChanges();
 
         return Ok();
-    }
-
-    private async Task<ActionResult?> ValidateLocationDto(
-        LocationDto dto,
-        bool validateId,
-        Location? existingLocation)
-    {
-        if (dto is null)
-            return BadRequest();
-
-        if (validateId && dto.Id <= 0)
-            return BadRequest();
-
-        if (string.IsNullOrWhiteSpace(dto.Name))
-            return BadRequest();
-
-        if (dto.Name.Length > 120)
-            return BadRequest();
-
-        if (string.IsNullOrWhiteSpace(dto.Address))
-            return BadRequest();
-
-        if (dto.TableCount < 1)
-            return BadRequest();
-
-        // ManagerId can be null. If not null, it must be a real user.
-        if (dto.ManagerId is not null)
-        {
-            var managerExists = await _dataContext.Users.AnyAsync(u => u.Id == dto.ManagerId.Value);
-            if (!managerExists)
-                return BadRequest();
-        }
-
-        return null;
     }
 }
