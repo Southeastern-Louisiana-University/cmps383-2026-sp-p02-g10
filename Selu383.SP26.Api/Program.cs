@@ -11,7 +11,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DataContext")));
 
-//add identity services-Terri
 builder.Services.AddIdentity<User, Role>()
     .AddEntityFrameworkStores<DataContext>()
     .AddDefaultTokenProviders();
@@ -21,7 +20,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-//fix 404 redirect issue-Terri
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Events.OnRedirectToLogin = context =>
@@ -54,7 +52,6 @@ using (var scope = app.Services.CreateScope())
     {
         await roleManager.CreateAsync(new Role { Name = "User" });
     }
-    //seeding users -Terri
     if (await userManager.FindByNameAsync("bob") == null)
     {
         var bob = new User { UserName = "bob" };
